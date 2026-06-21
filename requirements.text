@@ -1,0 +1,12 @@
+streamlit
+pymupdf
+pillow
+supabase
+google-generativeai
+faiss-cpu
+numpy
+pandas
+openpyxl
+python-docx
+python-pptx
+sentence-transformers
