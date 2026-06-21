@@ -1,58 +1,339 @@
 import streamlit as st
 import os
+import uuid
+import fitz
+from PIL import Image
 
-from pdf_reader import extract_pdf_text
+from document_reader import extract_file
+from chunker import chunk_text
+from vector_store import create_vector_store, search_chunks
 from gemini_client import ask_gemini
 
+# ---------------- PAGE CONFIG ---------------- #
+
 st.set_page_config(
-    page_title="Document Intelligence Platform",
+    page_title="AI Document Workspace",
     page_icon="📄",
     layout="wide"
 )
 
-st.title("📄 Document Intelligence Platform")
+# ---------------- UI ---------------- #
 
-uploaded_file = st.file_uploader(
-    "Upload a PDF",
-    type=["pdf"]
-)
+st.markdown("""
+<style>
+
+.stApp {
+    background: #f7f8fc;
+    font-family: Inter;
+}
+
+[data-testid="stSidebar"] {
+    background: white;
+    border-right: 1px solid #e5e7eb;
+}
+
+div[data-testid="stChatMessage"] {
+    background: white;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 10px;
+}
+
+.stButton>button {
+    background: #2563eb;
+    color: white;
+    border-radius: 8px;
+}
+
+.stButton>button:hover {
+    background: #1d4ed8;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+# ---------------- STORAGE ---------------- #
+
+BASE_DIR = "uploads"
+os.makedirs(BASE_DIR, exist_ok=True)
+
+# ---------------- MULTI USER ID ---------------- #
+
+if "user_id" not in st.session_state:
+    st.session_state.user_id = str(uuid.uuid4())
+
+USER_DIR = os.path.join(BASE_DIR, st.session_state.user_id)
+os.makedirs(USER_DIR, exist_ok=True)
+
+# ---------------- SESSION STATE ---------------- #
+
+if "index" not in st.session_state:
+    st.session_state.index = None
+
+if "chunks" not in st.session_state:
+    st.session_state.chunks = None
+
+if "current_doc" not in st.session_state:
+    st.session_state.current_doc = None
+
+if "chat" not in st.session_state:
+    st.session_state.chat = {}
+
+if "pdf_pages" not in st.session_state:
+    st.session_state.pdf_pages = []
+
+# ---------------- PDF VIEWER ---------------- #
+
+def render_pdf(file_path):
+    doc = fitz.open(file_path)
+    pages = []
+
+    for page in doc:
+        pix = page.get_pixmap()
+        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+        pages.append(img)
+
+    return pages
+
+# ---------------- SAFE FILE LIST ---------------- #
+
+def get_docs():
+    allowed = ["pdf", "docx", "txt", "xlsx", "xls", "pptx"]
+
+    files = []
+
+    for f in os.listdir(USER_DIR):
+        path = os.path.join(USER_DIR, f)
+
+        if not os.path.isfile(path):
+            continue
+
+        if "." not in f:
+            continue
+
+        if f.split(".")[-1].lower() in allowed:
+            files.append(f)
+
+    return files
+
+# ---------------- SIDEBAR ---------------- #
+
+with st.sidebar:
+
+    st.title("📄 My Documents")
+
+    uploaded_file = st.file_uploader(
+        "Upload Document",
+        type=["pdf", "docx", "txt", "xlsx", "xls", "pptx"]
+    )
+
+    docs = get_docs()
+
+    selected_doc = st.selectbox("Select Document", docs) if docs else None
+
+    col1, col2 = st.columns(2)
+
+    open_btn = col1.button("Open")
+    delete_btn = col2.button("Delete")
+
+    st.markdown("---")
+
+    summary_btn = st.button("📋 Summary")
+    brief_btn = st.button("📊 Executive Brief")
+
+# ---------------- UPLOAD ---------------- #
 
 if uploaded_file:
 
-    save_path = os.path.join("uploads", uploaded_file.name)
+    file_path = os.path.join(USER_DIR, uploaded_file.name)
 
-    with open(save_path, "wb") as f:
+    with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
-    pdf_data = extract_pdf_text(save_path)
+    data = extract_file(file_path)
 
-    st.success("PDF uploaded successfully!")
+    chunks = chunk_text(data["pages_data"], 800)
+    index, stored = create_vector_store(chunks)
 
-    st.write(f"📚 Pages: {pdf_data['pages']}")
-    st.write(f"🔤 Characters: {pdf_data['characters']}")
+    st.session_state.index = index
+    st.session_state.chunks = stored
+    st.session_state.current_doc = uploaded_file.name
 
-    question = st.text_input(
-        "Ask a question about the document"
-    )
+    st.session_state.chat.setdefault(uploaded_file.name, [])
+
+    # PDF render
+    st.session_state.pdf_pages = render_pdf(file_path)
+
+    st.success("Uploaded securely (multi-user safe)")
+
+# ---------------- OPEN ---------------- #
+
+if open_btn and selected_doc:
+
+    file_path = os.path.join(USER_DIR, selected_doc)
+
+    data = extract_file(file_path)
+
+    chunks = chunk_text(data["pages_data"], 800)
+    index, stored = create_vector_store(chunks)
+
+    st.session_state.index = index
+    st.session_state.chunks = stored
+    st.session_state.current_doc = selected_doc
+
+    st.session_state.chat.setdefault(selected_doc, [])
+
+    # PDF render
+    st.session_state.pdf_pages = render_pdf(file_path)
+
+    st.success(f"{selected_doc} loaded")
+
+# ---------------- DELETE ---------------- #
+
+if delete_btn and selected_doc:
+
+    file_path = os.path.join(USER_DIR, selected_doc)
+
+    try:
+        os.remove(file_path)
+    except:
+        pass
+
+    st.session_state.chat.pop(selected_doc, None)
+
+    if st.session_state.current_doc == selected_doc:
+        st.session_state.index = None
+        st.session_state.chunks = None
+        st.session_state.current_doc = None
+        st.session_state.pdf_pages = []
+
+    st.rerun()
+
+# ---------------- HEADER ---------------- #
+
+st.title("📄 AI Document Workspace (Secure SaaS)")
+
+if st.session_state.current_doc:
+    st.info(f"User: {st.session_state.user_id[:8]} | Active: {st.session_state.current_doc}")
+
+# ---------------- LAYOUT ---------------- #
+
+col1, col2 = st.columns([1.3, 1])
+
+# ---------------- CHAT ---------------- #
+
+with col1:
+
+    doc = st.session_state.current_doc
+    chat = st.session_state.chat.get(doc, [])
+
+    for msg in chat:
+        with st.chat_message(msg["role"]):
+            st.write(msg["content"])
+
+    question = st.chat_input("Ask anything from your document...")
 
     if question:
 
-        with st.spinner("Thinking..."):
+        if st.session_state.index is None:
+            st.warning("Open a document first")
+            st.stop()
 
-            prompt = f"""
-            You must answer only from the document below.
+        chat.append({"role": "user", "content": question})
 
-            DOCUMENT:
-            {pdf_data['text'][:30000]}
+        results = search_chunks(
+            question,
+            st.session_state.index,
+            st.session_state.chunks,
+            top_k=5
+        )
 
-            QUESTION:
-            {question}
+        context = "\n".join(
+            [f"PAGE {c['page']}:\n{c['text']}" for c in results]
+        )
 
-            If the answer is not present, say:
-            'Information not found in document.'
-            """
+        prompt = f"""
+You are a document AI assistant.
 
-            answer = ask_gemini(prompt)
+Use ONLY context.
 
-        st.subheader("Answer")
-        st.write(answer)
+If not found say "Not found in document".
+
+Context:
+{context}
+
+Question:
+{question}
+"""
+
+        answer = ask_gemini(prompt)
+
+        chat.append({"role": "assistant", "content": answer})
+
+        with st.chat_message("assistant"):
+            st.write(answer)
+
+# ---------------- PDF VIEWER ---------------- #
+
+with col2:
+
+    st.subheader("📄 PDF Viewer")
+
+    if st.session_state.pdf_pages:
+
+        page_no = st.slider(
+            "Page",
+            1,
+            len(st.session_state.pdf_pages),
+            1
+        )
+
+        st.image(
+            st.session_state.pdf_pages[page_no - 1],
+            use_container_width=True
+        )
+
+    else:
+        st.info("No PDF loaded")
+
+# ---------------- SUMMARY ---------------- #
+
+if summary_btn and st.session_state.index:
+
+    full = "\n".join([f"PAGE {c['page']}:\n{c['text']}" for c in st.session_state.chunks])
+
+    st.subheader("📋 Summary")
+
+    prompt = f"""
+Create structured summary:
+- Purpose
+- Findings
+- Risks
+- Conclusion
+
+Context:
+{full}
+"""
+
+    st.write(ask_gemini(prompt))
+
+# ---------------- EXECUTIVE BRIEF ---------------- #
+
+if brief_btn and st.session_state.index:
+
+    full = "\n".join([f"PAGE {c['page']}:\n{c['text']}" for c in st.session_state.chunks])
+
+    st.subheader("📊 Executive Brief")
+
+    prompt = f"""
+Create executive brief:
+- Summary
+- Insights
+- Risks
+- Recommendations
+
+Context:
+{full}
+"""
+
+    st.write(ask_gemini(prompt))

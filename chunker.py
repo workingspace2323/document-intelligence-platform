@@ -1,8 +1,19 @@
-def chunk_text(text, chunk_size=1000):
+def chunk_text(pages_data, chunk_size=800):
 
     chunks = []
 
-    for i in range(0, len(text), chunk_size):
-        chunks.append(text[i:i + chunk_size])
+    for page_data in pages_data:
+
+        page_number = page_data["page"]
+        text = page_data["text"]
+
+        for i in range(0, len(text), chunk_size):
+
+            chunk = text[i:i + chunk_size]
+
+            chunks.append({
+                "page": page_number,
+                "text": chunk
+            })
 
     return chunks

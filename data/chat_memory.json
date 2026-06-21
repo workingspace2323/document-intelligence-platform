@@ -1,0 +1,28 @@
+{
+  "EOI Empanelment of Vendors.pdf": [
+    {
+      "role": "user",
+      "content": "what is in this file"
+    },
+    {
+      "role": "assistant",
+      "content": "This file is an Expression of Interest (EOI) document issued by the Uttarakhand State Cooperative Federation (UCF) for the empanelment of vendors across multiple business categories. \n\nThe document includes the following key sections:\n*   **Introduction and Scope of Work:** Defines the purpose of the empanelment and various business categories (e.g., Composting, Industrial & Manufacturing Supplies, Fuel Business, Manpower Supply, and Event Management).\n*   **Work Value Categories:** Outlines five financial categories (A through E), ranging from up to \u20b950 lakhs to above \u20b95 crore.\n*   **Administrative Requirements:** Details regarding registration fees, category-wise submission requirements, and security deposits.\n*   **Legal/Regulatory Terms:** Includes the UCF's right to modify or cancel the EOI, a declaration form for applicants, and minimum eligibility criteria."
+    },
+    {
+      "role": "user",
+      "content": "what is about fees in this"
+    },
+    {
+      "role": "assistant",
+      "content": "Regarding fees, the document states the following:\n\n*   **Registration/Tender Fee:** The fee is \u20b95,000, which is non-refundable.\n*   **Application Scope:** There is no limit on the number of categories an applicant may apply for, but the registration fee is for each category.\n*   **Payment Details:**\n    *   **Mode:** Online / NEFT\n    *   **Bank:** Axis Bank, Dehradun\n    *   **Account No.:** 909010043346483\n    *   **Account Name:** Uttarakhand State Cooperative Federation Limited\n    *   **IFSC:** UTIB0000093"
+    },
+    {
+      "role": "user",
+      "content": "what is the information given about vendors"
+    },
+    {
+      "role": "assistant",
+      "content": "Based on the provided document, the following information is given about vendors:\n\n*   **Empanelment:** UCF is inviting Expressions of Interest (EOI) from eligible and experienced agencies for empanelment across multiple business categories for the supply of goods, services, works, and specialized activities.\n*   **Categories:** UCF requires a diverse vendor base to support procurement, infrastructure development, service delivery, and operational activities. There are various business categories, including Women & SHG Products, Household & Daily Use, Food & Catering, Transportation & Logistics, Security & Safety, Printing/Packaging/Branding, Tourism & Local Products, Water & Sanitation, and Environment & Waste Management.\n*   **Application Requirements:**\n    *   Participants may apply for any number of business categories.\n    *   A separate EOI must be submitted for each category.\n    *   Applicants must provide a registration fee of \u20b95,000.\n    *   Applicants must submit specific documentation, including a Registration Certificate, PAN, GST, MOA/AOA/Byelaws, experience proof, a non-blacklisting declaration, an undertaking, a formal declaration (Annexure-IV), and proof of authorized signatory.\n*   **Work Value and Security:** There are defined \"Work Value Categories\" and a \"Security Deposit (Work-wise)\" requirement.\n*   **Eligibility:** Agencies must meet \"Minimum Eligibility Criteria\" and must possess relevant experience in the applied category, which must be supported by work orders or completion certificates. The applicant's scope of work must also be mentioned in their MOA/AOA/Byelaws."
+    }
+  ]
+}
