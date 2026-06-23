@@ -164,7 +164,7 @@ if uploaded_file:
     # PDF render
     st.session_state.pdf_pages = render_pdf(file_path)
 
-    st.success("Uploaded securely (multi-user safe)")
+    st.success("Uploaded securely")
 
 # ---------------- OPEN ---------------- #
 
@@ -211,7 +211,7 @@ if delete_btn and selected_doc:
 
 # ---------------- HEADER ---------------- #
 
-st.title("📄 AI Document Workspace (Secure SaaS)")
+st.title("📄 Document Workspace")
 
 if st.session_state.current_doc:
     st.info(f"User: {st.session_state.user_id[:8]} | Active: {st.session_state.current_doc}")
