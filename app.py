@@ -12,7 +12,7 @@ from gemini_client import ask_gemini
 # ---------------- PAGE CONFIG ---------------- #
 
 st.set_page_config(
-    page_title="AI Document Workspace",
+    page_title="Document Workspace",
     page_icon="📄",
     layout="wide"
 )
@@ -39,13 +39,13 @@ div[data-testid="stChatMessage"] {
     padding: 10px;
 }
 
-.stButton>button {
+.stButton > button {
     background: #2563eb;
     color: white;
     border-radius: 8px;
 }
 
-.stButton>button:hover {
+.stButton > button:hover {
     background: #1d4ed8;
 }
 
@@ -57,7 +57,7 @@ div[data-testid="stChatMessage"] {
 BASE_DIR = "uploads"
 os.makedirs(BASE_DIR, exist_ok=True)
 
-# ---------------- MULTI USER ID ---------------- #
+# ---------------- MULTI USER ---------------- #
 
 if "user_id" not in st.session_state:
     st.session_state.user_id = str(uuid.uuid4())
@@ -79,30 +79,39 @@ if "current_doc" not in st.session_state:
 if "chat" not in st.session_state:
     st.session_state.chat = {}
 
-if "pdf_pages" not in st.session_state:
-    st.session_state.pdf_pages = []
+# ---------------- PDF PAGE RENDER ---------------- #
 
-# ---------------- PDF VIEWER ---------------- #
+def render_pdf_page(file_path, page_number):
 
-def render_pdf(file_path):
     doc = fitz.open(file_path)
-    pages = []
 
-    for page in doc:
-        pix = page.get_pixmap()
-        img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
-        pages.append(img)
+    if page_number < 0 or page_number >= len(doc):
+        return None
 
-    return pages
+    page = doc[page_number]
 
-# ---------------- SAFE FILE LIST ---------------- #
+    pix = page.get_pixmap(
+        matrix=fitz.Matrix(1.5, 1.5)
+    )
+
+    img = Image.frombytes(
+        "RGB",
+        [pix.width, pix.height],
+        pix.samples
+    )
+
+    return img
+
+# ---------------- FILE LIST ---------------- #
 
 def get_docs():
+
     allowed = ["pdf", "docx", "txt", "xlsx", "xls", "pptx"]
 
     files = []
 
     for f in os.listdir(USER_DIR):
+
         path = os.path.join(USER_DIR, f)
 
         if not os.path.isfile(path):
@@ -111,7 +120,9 @@ def get_docs():
         if "." not in f:
             continue
 
-        if f.split(".")[-1].lower() in allowed:
+        ext = f.split(".")[-1].lower()
+
+        if ext in allowed:
             files.append(f)
 
     return files
@@ -129,7 +140,10 @@ with st.sidebar:
 
     docs = get_docs()
 
-    selected_doc = st.selectbox("Select Document", docs) if docs else None
+    selected_doc = st.selectbox(
+        "Select Document",
+        docs
+    ) if docs else None
 
     col1, col2 = st.columns(2)
 
@@ -145,24 +159,31 @@ with st.sidebar:
 
 if uploaded_file:
 
-    file_path = os.path.join(USER_DIR, uploaded_file.name)
+    file_path = os.path.join(
+        USER_DIR,
+        uploaded_file.name
+    )
 
     with open(file_path, "wb") as f:
         f.write(uploaded_file.getbuffer())
 
     data = extract_file(file_path)
 
-    chunks = chunk_text(data["pages_data"], 800)
+    chunks = chunk_text(
+        data["pages_data"],
+        800
+    )
+
     index, stored = create_vector_store(chunks)
 
     st.session_state.index = index
     st.session_state.chunks = stored
     st.session_state.current_doc = uploaded_file.name
 
-    st.session_state.chat.setdefault(uploaded_file.name, [])
-
-    # PDF render
-    st.session_state.pdf_pages = render_pdf(file_path)
+    st.session_state.chat.setdefault(
+        uploaded_file.name,
+        []
+    )
 
     st.success("Uploaded securely")
 
@@ -170,21 +191,28 @@ if uploaded_file:
 
 if open_btn and selected_doc:
 
-    file_path = os.path.join(USER_DIR, selected_doc)
+    file_path = os.path.join(
+        USER_DIR,
+        selected_doc
+    )
 
     data = extract_file(file_path)
 
-    chunks = chunk_text(data["pages_data"], 800)
+    chunks = chunk_text(
+        data["pages_data"],
+        800
+    )
+
     index, stored = create_vector_store(chunks)
 
     st.session_state.index = index
     st.session_state.chunks = stored
     st.session_state.current_doc = selected_doc
 
-    st.session_state.chat.setdefault(selected_doc, [])
-
-    # PDF render
-    st.session_state.pdf_pages = render_pdf(file_path)
+    st.session_state.chat.setdefault(
+        selected_doc,
+        []
+    )
 
     st.success(f"{selected_doc} loaded")
 
@@ -192,20 +220,26 @@ if open_btn and selected_doc:
 
 if delete_btn and selected_doc:
 
-    file_path = os.path.join(USER_DIR, selected_doc)
+    file_path = os.path.join(
+        USER_DIR,
+        selected_doc
+    )
 
     try:
         os.remove(file_path)
     except:
         pass
 
-    st.session_state.chat.pop(selected_doc, None)
+    st.session_state.chat.pop(
+        selected_doc,
+        None
+    )
 
     if st.session_state.current_doc == selected_doc:
+
         st.session_state.index = None
         st.session_state.chunks = None
         st.session_state.current_doc = None
-        st.session_state.pdf_pages = []
 
     st.rerun()
 
@@ -214,7 +248,10 @@ if delete_btn and selected_doc:
 st.title("📄 Document Workspace")
 
 if st.session_state.current_doc:
-    st.info(f"User: {st.session_state.user_id[:8]} | Active: {st.session_state.current_doc}")
+
+    st.info(
+        f"User: {st.session_state.user_id[:8]} | Active: {st.session_state.current_doc}"
+    )
 
 # ---------------- LAYOUT ---------------- #
 
@@ -225,21 +262,35 @@ col1, col2 = st.columns([1.3, 1])
 with col1:
 
     doc = st.session_state.current_doc
-    chat = st.session_state.chat.get(doc, [])
+
+    chat = st.session_state.chat.get(
+        doc,
+        []
+    )
 
     for msg in chat:
+
         with st.chat_message(msg["role"]):
             st.write(msg["content"])
 
-    question = st.chat_input("Ask anything from your document...")
+    question = st.chat_input(
+        "Ask anything from your document..."
+    )
 
     if question:
 
         if st.session_state.index is None:
-            st.warning("Open a document first")
+
+            st.warning(
+                "Open a document first"
+            )
+
             st.stop()
 
-        chat.append({"role": "user", "content": question})
+        chat.append({
+            "role": "user",
+            "content": question
+        })
 
         results = search_chunks(
             question,
@@ -249,15 +300,21 @@ with col1:
         )
 
         context = "\n".join(
-            [f"PAGE {c['page']}:\n{c['text']}" for c in results]
+            [
+                f"PAGE {c['page']}:\n{c['text']}"
+                for c in results
+            ]
         )
 
         prompt = f"""
 You are a document AI assistant.
 
-Use ONLY context.
+Use ONLY the supplied context.
 
-If not found say "Not found in document".
+If the answer is not found,
+reply exactly:
+
+Not found in document.
 
 Context:
 {context}
@@ -268,7 +325,10 @@ Question:
 
         answer = ask_gemini(prompt)
 
-        chat.append({"role": "assistant", "content": answer})
+        chat.append({
+            "role": "assistant",
+            "content": answer
+        })
 
         with st.chat_message("assistant"):
             st.write(answer)
@@ -279,33 +339,72 @@ with col2:
 
     st.subheader("📄 PDF Viewer")
 
-    if st.session_state.pdf_pages:
+    if st.session_state.current_doc:
 
-        page_no = st.slider(
-            "Page",
-            1,
-            len(st.session_state.pdf_pages),
-            1
+        file_path = os.path.join(
+            USER_DIR,
+            st.session_state.current_doc
         )
 
-        st.image(
-            st.session_state.pdf_pages[page_no - 1],
-            use_container_width=True
-        )
+        if file_path.lower().endswith(".pdf"):
+
+            try:
+
+                doc = fitz.open(file_path)
+
+                total_pages = len(doc)
+
+                page_no = st.slider(
+                    "Page",
+                    min_value=1,
+                    max_value=total_pages,
+                    value=1
+                )
+
+                image = render_pdf_page(
+                    file_path,
+                    page_no - 1
+                )
+
+                if image:
+
+                    st.image(
+                        image,
+                        width=700
+                    )
+
+            except Exception as e:
+
+                st.error(
+                    f"PDF Viewer Error: {e}"
+                )
+
+        else:
+
+            st.info(
+                "PDF viewer available only for PDF files."
+            )
 
     else:
-        st.info("No PDF loaded")
+
+        st.info("No document loaded")
 
 # ---------------- SUMMARY ---------------- #
 
 if summary_btn and st.session_state.index:
 
-    full = "\n".join([f"PAGE {c['page']}:\n{c['text']}" for c in st.session_state.chunks])
+    full = "\n".join(
+        [
+            f"PAGE {c['page']}:\n{c['text']}"
+            for c in st.session_state.chunks
+        ]
+    )
 
     st.subheader("📋 Summary")
 
     prompt = f"""
-Create structured summary:
+Create a structured summary:
+
 - Purpose
 - Findings
 - Risks
@@ -315,18 +414,26 @@ Context:
 {full}
 """
 
-    st.write(ask_gemini(prompt))
+    st.write(
+        ask_gemini(prompt)
+    )
 
 # ---------------- EXECUTIVE BRIEF ---------------- #
 
 if brief_btn and st.session_state.index:
 
-    full = "\n".join([f"PAGE {c['page']}:\n{c['text']}" for c in st.session_state.chunks])
+    full = "\n".join(
+        [
+            f"PAGE {c['page']}:\n{c['text']}"
+            for c in st.session_state.chunks
+        ]
+    )
 
     st.subheader("📊 Executive Brief")
 
     prompt = f"""
-Create executive brief:
+Create an executive brief:
+
 - Summary
 - Insights
 - Risks
@@ -336,4 +443,6 @@ Context:
 {full}
 """
 
-    st.write(ask_gemini(prompt))
+    st.write(
+        ask_gemini(prompt)
+    )
