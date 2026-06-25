@@ -10,3 +10,4 @@ openpyxl
 python-docx
 python-pptx
 sentence-transformers
+python-dotenv
